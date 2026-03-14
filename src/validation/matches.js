@@ -7,7 +7,7 @@ export const MATCH_STATUS = {
 };
 
 export const listMatchesQuerySchema = z.object({
-  limit: z.coerce.number().int().positive().max(100).optional(),
+  limit: z.coerce.number().int().positive().max(50).optional(),
 });
 
 export const matchIdParamSchema = z.object({

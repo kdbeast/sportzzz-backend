@@ -5,6 +5,7 @@ import { getMatchStatus } from "../utils/match-status.js";
 import {
   createMatchSchema,
   listMatchesQuerySchema,
+  MATCH_STATUS,
 } from "../validation/matches.js";
 import { desc } from "drizzle-orm";
 
@@ -44,16 +45,15 @@ matchRouter.post("/", async (req, res) => {
   const { startTime, endTime, homeScore, awayScore } = parsed.data;
 
   try {
-    console.log("parsed.data", parsed.data);
     const [event] = await db
       .insert(matches)
       .values({
         ...parsed.data,
         startTime: new Date(startTime),
-        endTime: endTime ? new Date(endTime) : null,
+        endTime: new Date(endTime),
         homeScore: homeScore ?? 0,
         awayScore: awayScore ?? 0,
-        status: getMatchStatus(startTime, endTime),
+        status: getMatchStatus(startTime, endTime) ?? MATCH_STATUS.SCHEDULED,
       })
       .returning();
 
