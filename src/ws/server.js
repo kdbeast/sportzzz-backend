@@ -23,6 +23,21 @@ export function attachWebSocketServer(server) {
     maxPayload: 1024 * 1024,
   });
 
+  const interval = setInterval(() => {
+    for (const ws of wss.clients) {
+      if (ws.isAlive === false) {
+        ws.terminate();
+        continue;
+      }
+      ws.isAlive = false;
+      ws.ping();
+    }
+  }, 30000);
+
+  wss.on("close", () => {
+    clearInterval(interval);
+  });
+
   wss.on("connection", (socket) => {
     socket.isAlive = true;
     socket.on("pong", () => {
@@ -32,17 +47,17 @@ export function attachWebSocketServer(server) {
 
     socket.on("error", console.error);
 
-    const interval = setInterval(() => {
-      wss.clients.forEach((ws) => {
-        if (ws.isAlive === false) return ws.terminate();
-        ws.isAlive = false;
-        ws.ping();
-      });
-    }, 30000);
+    // const interval = setInterval(() => {
+    //   wss.clients.forEach((ws) => {
+    //     if (ws.isAlive === false) return ws.terminate();
+    //     ws.isAlive = false;
+    //     ws.ping();
+    //   });
+    // }, 30000);
 
-    wss.on("close", () => {
-      clearInterval(interval);
-    });
+    // wss.on("close", () => {
+    //   clearInterval(interval);
+    // });
   });
 
   function broadcastMatchCreated(match) {
