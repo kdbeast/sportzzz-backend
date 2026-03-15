@@ -1,9 +1,10 @@
-import express from "express";
-import http from "http";
-import { matchRouter } from "./routes/matches.route.js";
 import "dotenv/config";
-import { attachWebSocketServer } from "./ws/server.js";
+import http from "http";
+import express from "express";
 import { securityMiddleware } from "./arcjet.js";
+import { attachWebSocketServer } from "./ws/server.js";
+import { matchRouter } from "./routes/matches.route.js";
+import { commentaryRouter } from "./routes/commentary.route.js";
 
 const PORT = process.env.PORT || 8000;
 const HOST = process.env.HOST || "0.0.0.0";
@@ -16,9 +17,11 @@ app.use(express.json());
 app.use(securityMiddleware());
 
 app.use("/matches", matchRouter);
+app.use("/matches/:id/commentary", commentaryRouter);
 
-const { broadcastMatchCreated } = attachWebSocketServer(server);
+const { broadcastMatchCreated, broadcastCommentary } = attachWebSocketServer(server);
 app.locals.broadcastMatchCreated = broadcastMatchCreated;
+app.locals.broadcastCommentary = broadcastCommentary;
 
 server.listen(PORT, HOST, () => {
   const baseUrl =
