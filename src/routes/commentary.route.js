@@ -56,6 +56,7 @@ commentaryRouter.post("/", async (req, res) => {
       .json({ error: "Invalid match ID.", details: paramsResult.error.issues });
   }
 
+  // Match commentary: Step 1: Validate payload --> server.js
   const bodyResult = createCommentarySchema.safeParse(req.body);
   if (!bodyResult.success) {
     return res.status(400).json({

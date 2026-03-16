@@ -28,6 +28,7 @@ matchRouter.get("/", async (req, res) => {
       .from(matches)
       .orderBy(desc(matches.createdAt))
       .limit(limit);
+    console.log("Matches fetched", data);
     return res.status(200).json({ data });
   } catch (error) {
     console.error("Error fetching matches:", error);

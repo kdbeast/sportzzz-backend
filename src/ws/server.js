@@ -1,6 +1,7 @@
 import { WebSocket, WebSocketServer } from "ws";
 import { wsArcjet } from "../arcjet.js";
 
+// So every match has its own list of subscribers.
 const matchSubscribers = new Map();
 
 function subscribe(matchId, socket) {
@@ -35,6 +36,8 @@ function sendJson(socket, payload) {
   socket.send(JSON.stringify(payload));
 }
 
+// global events
+// Match broadcast Step 1: Broadcast to all clients
 function broadcastToAll(wss, payload) {
   for (const client of wss.clients) {
     if (client.readyState !== WebSocket.OPEN) continue;
@@ -43,6 +46,8 @@ function broadcastToAll(wss, payload) {
   }
 }
 
+// targeted events
+// Match commentary Step 2: Broadcast commentary to match subscribers
 function broadcastToMatch(matchId, payload) {
   const subscribers = matchSubscribers.get(matchId);
   if (!subscribers || subscribers.size === 0) return;
@@ -63,6 +68,7 @@ function handleMessage(socket, data) {
     message = JSON.parse(data.toString());
   } catch {
     sendJson(socket, { type: "error", message: "Invalid JSON" });
+    return;
   }
 
   if (message?.type === "subscribe" && Number.isInteger(message.matchId)) {
@@ -86,6 +92,7 @@ export function attachWebSocketServer(server) {
     maxPayload: 1024 * 1024,
   });
 
+  // upgrade connection to websocket
   server.on("upgrade", async (req, socket, head) => {
     const { pathname } = new URL(req.url, `http://${req.headers.host}`);
 
@@ -114,24 +121,29 @@ export function attachWebSocketServer(server) {
       }
     }
 
+    // security checks, routing, Arcjet protection
     wss.handleUpgrade(req, socket, head, (ws) => {
       wss.emit("connection", ws, req);
     });
   });
 
   wss.on("connection", async (socket, req) => {
+    // client response to server
     socket.isAlive = true;
     socket.on("pong", () => {
       socket.isAlive = true;
     });
 
+    // guarantees unique values and no duplicate subscriptions
     socket.subscriptions = new Set();
 
     sendJson(socket, { type: "welcome" });
+    console.log("WebSocket connection established");
 
     socket.on("message", (data) => {
       handleMessage(socket, data);
     });
+    console.log("WebSocket message received");
 
     socket.on("error", () => {
       socket.terminate();
@@ -155,10 +167,12 @@ export function attachWebSocketServer(server) {
 
   wss.on("close", () => clearInterval(interval));
 
+  // Match broadcast Step 2: Broadcast match created
   function broadcastMatchCreated(match) {
     broadcastToAll(wss, { type: "match_created", data: match });
   }
 
+  // Match commentary Step 3: Broadcast commentary to match subscribers
   function broadcastCommentary(matchId, comment) {
     broadcastToMatch(matchId, { type: "commentary", data: comment });
   }
