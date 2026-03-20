@@ -19,7 +19,8 @@ app.use(express.json());
 app.use("/matches", matchRouter);
 app.use("/matches/:id/commentary", commentaryRouter);
 
-const { broadcastMatchCreated, broadcastCommentary } = attachWebSocketServer(server);
+const { broadcastMatchCreated, broadcastCommentary } =
+  attachWebSocketServer(server);
 app.locals.broadcastMatchCreated = broadcastMatchCreated;
 app.locals.broadcastCommentary = broadcastCommentary;
 
@@ -27,6 +28,7 @@ server.listen(PORT, HOST, () => {
   const baseUrl =
     HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
 
+  console.log("host", HOST);
   console.log(`Server running at ${baseUrl}`);
   console.log(
     `WebSocket server running at ${baseUrl.replace("http", "ws")}/ws`,
