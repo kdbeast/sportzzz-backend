@@ -1,12 +1,10 @@
 import { Router } from "express";
-import { eq, desc } from "drizzle-orm";
 import { matchIdParamSchema } from "../validation/matches.js";
 import {
   createCommentarySchema,
   listCommentaryQuerySchema,
 } from "../validation/commentary.js";
-import { db } from "../db/db.js";
-import { commentary } from "../db/schema.js";
+import { Commentary } from "../models/commentary.model.js";
 
 const MAX_LIMIT = 100;
 
@@ -34,11 +32,8 @@ commentaryRouter.get("/", async (req, res) => {
 
     const safeLimit = Math.min(limit, MAX_LIMIT);
 
-    const results = await db
-      .select()
-      .from(commentary)
-      .where(eq(commentary.matchId, matchId))
-      .orderBy(desc(commentary.createdAt))
+    const results = await Commentary.find({ matchId })
+      .sort({ createdAt: -1 })
       .limit(safeLimit);
 
     res.status(200).json({ data: results });
@@ -67,14 +62,11 @@ commentaryRouter.post("/", async (req, res) => {
 
   try {
     const { minute, ...rest } = bodyResult.data;
-    const [result] = await db
-      .insert(commentary)
-      .values({
-        matchId: paramsResult.data.id,
-        minute,
-        ...rest,
-      })
-      .returning();
+    const result = await Commentary.create({
+      matchId: paramsResult.data.id,
+      minute,
+      ...rest,
+    });
 
     if (res.app.locals.broadcastCommentary) {
       res.app.locals.broadcastCommentary(result.matchId, result);

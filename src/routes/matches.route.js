@@ -1,13 +1,11 @@
 import { Router } from "express";
-import { db } from "../db/db.js";
-import { matches } from "../db/schema.js";
 import { getMatchStatus } from "../utils/match-status.js";
 import {
   createMatchSchema,
   listMatchesQuerySchema,
   MATCH_STATUS,
 } from "../validation/matches.js";
-import { desc } from "drizzle-orm";
+import { Match } from "../models/match.model.js";
 
 export const matchRouter = Router();
 
@@ -23,11 +21,7 @@ matchRouter.get("/", async (req, res) => {
   const limit = Math.min(parsed.data.limit ?? 50, MAX_LIMIT);
 
   try {
-    const data = await db
-      .select()
-      .from(matches)
-      .orderBy(desc(matches.createdAt))
-      .limit(limit);
+    const data = await Match.find().sort({ createdAt: -1 }).limit(limit);
     console.log("Matches fetched", data);
     return res.status(200).json({ data });
   } catch (error) {
@@ -46,17 +40,14 @@ matchRouter.post("/", async (req, res) => {
   const { startTime, endTime, homeScore, awayScore } = parsed.data;
 
   try {
-    const [event] = await db
-      .insert(matches)
-      .values({
-        ...parsed.data,
-        startTime: new Date(startTime),
-        endTime: new Date(endTime),
-        homeScore: homeScore ?? 0,
-        awayScore: awayScore ?? 0,
-        status: getMatchStatus(startTime, endTime) ?? MATCH_STATUS.SCHEDULED,
-      })
-      .returning();
+    const event = await Match.create({
+      ...parsed.data,
+      startTime: new Date(startTime),
+      endTime: new Date(endTime),
+      homeScore: homeScore ?? 0,
+      awayScore: awayScore ?? 0,
+      status: getMatchStatus(startTime, endTime) ?? MATCH_STATUS.SCHEDULED,
+    });
 
     if (res.app.locals.broadcastMatchCreated) {
       res.app.locals.broadcastMatchCreated(event);

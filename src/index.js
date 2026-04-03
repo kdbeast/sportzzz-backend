@@ -2,6 +2,7 @@ import "dotenv/config";
 import http from "http";
 import cors from "cors";
 import express from "express";
+import { connectDB } from "./db/mongo.js";
 import { securityMiddleware } from "./arcjet.js";
 import { attachWebSocketServer } from "./ws/server.js";
 import { matchRouter } from "./routes/matches.route.js";
@@ -12,6 +13,8 @@ const HOST = process.env.HOST || "0.0.0.0";
 
 const app = express();
 const server = http.createServer(app);
+
+await connectDB();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));

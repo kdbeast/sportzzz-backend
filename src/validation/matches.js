@@ -11,7 +11,7 @@ export const listMatchesQuerySchema = z.object({
 });
 
 export const matchIdParamSchema = z.object({
-  id: z.coerce.number().int().positive(),
+  id: z.string().min(1),
 });
 
 export const createMatchSchema = z
