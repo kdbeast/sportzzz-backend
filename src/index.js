@@ -1,5 +1,6 @@
 import "dotenv/config";
 import http from "http";
+import cors from "cors";
 import express from "express";
 import { securityMiddleware } from "./arcjet.js";
 import { attachWebSocketServer } from "./ws/server.js";
@@ -13,6 +14,17 @@ const app = express();
 const server = http.createServer(app);
 
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET", "POST"],
+  }),
+);
+
+app.get("/", (req, res) => {
+  res.send("Hello from Express server!");
+});
 
 // app.use(securityMiddleware());
 
@@ -28,7 +40,6 @@ server.listen(PORT, HOST, () => {
   const baseUrl =
     HOST === "0.0.0.0" ? `http://localhost:${PORT}` : `http://${HOST}:${PORT}`;
 
-  console.log("host", HOST);
   console.log(`Server running at ${baseUrl}`);
   console.log(
     `WebSocket server running at ${baseUrl.replace("http", "ws")}/ws`,
