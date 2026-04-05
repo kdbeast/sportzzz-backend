@@ -1,11 +1,11 @@
 import { Router } from "express";
-import { getMatchStatus } from "../utils/match-status.js";
 import {
   createMatchSchema,
   listMatchesQuerySchema,
   MATCH_STATUS,
 } from "../validation/matches.js";
 import { Match } from "../models/match.model.js";
+import { getMatchStatus } from "../utils/match-status.js";
 
 export const matchRouter = Router();
 
@@ -21,8 +21,13 @@ matchRouter.get("/", async (req, res) => {
   const limit = Math.min(parsed.data.limit ?? 50, MAX_LIMIT);
 
   try {
-    const data = await Match.find().sort({ createdAt: -1 }).limit(limit);
-    console.log("Matches fetched", data);
+    const matches = await Match.find().sort({ createdAt: -1 }).limit(limit);
+
+    const data = matches.map((match) => ({
+      ...match.toObject(),
+      status: getMatchStatus(match.startTime, match.endTime, match.status),
+    }));
+
     return res.status(200).json({ data });
   } catch (error) {
     console.error("Error fetching matches:", error);
@@ -46,7 +51,7 @@ matchRouter.post("/", async (req, res) => {
       endTime: new Date(endTime),
       homeScore: homeScore ?? 0,
       awayScore: awayScore ?? 0,
-      status: getMatchStatus(startTime, endTime) ?? MATCH_STATUS.SCHEDULED,
+      status: getMatchStatus(startTime, endTime, MATCH_STATUS.SCHEDULED) ?? MATCH_STATUS.SCHEDULED,
     });
 
     if (res.app.locals.broadcastMatchCreated) {

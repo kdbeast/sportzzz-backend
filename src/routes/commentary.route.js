@@ -1,21 +1,27 @@
+import mongoose from "mongoose";
 import { Router } from "express";
-import { matchIdParamSchema } from "../validation/matches.js";
 import {
   createCommentarySchema,
   listCommentaryQuerySchema,
 } from "../validation/commentary.js";
+import { Match } from "../models/match.model.js";
+import { getMatchStatus } from "../utils/match-status.js";
 import { Commentary } from "../models/commentary.model.js";
+import { matchIdParamSchema } from "../validation/matches.js";
 
 const MAX_LIMIT = 100;
 
 export const commentaryRouter = Router({ mergeParams: true });
 
+/* ===================== GET ===================== */
+
 commentaryRouter.get("/", async (req, res) => {
   const paramsResult = matchIdParamSchema.safeParse(req.params);
   if (!paramsResult.success) {
-    return res
-      .status(400)
-      .json({ error: "Invalid match ID.", details: paramsResult.error.issues });
+    return res.status(400).json({
+      error: "Invalid match ID.",
+      details: paramsResult.error.issues,
+    });
   }
 
   const queryResult = listCommentaryQuerySchema.safeParse(req.query);
@@ -28,8 +34,11 @@ commentaryRouter.get("/", async (req, res) => {
 
   try {
     const { id: matchId } = paramsResult.data;
-    const { limit = 10 } = queryResult.data;
+    if (!mongoose.Types.ObjectId.isValid(matchId)) {
+      return res.status(400).json({ error: "Invalid match ID." });
+    }
 
+    const { limit = 10 } = queryResult.data;
     const safeLimit = Math.min(limit, MAX_LIMIT);
 
     const results = await Commentary.find({ matchId })
@@ -43,15 +52,17 @@ commentaryRouter.get("/", async (req, res) => {
   }
 });
 
+/* ===================== POST ===================== */
+
 commentaryRouter.post("/", async (req, res) => {
   const paramsResult = matchIdParamSchema.safeParse(req.params);
   if (!paramsResult.success) {
-    return res
-      .status(400)
-      .json({ error: "Invalid match ID.", details: paramsResult.error.issues });
+    return res.status(400).json({
+      error: "Invalid match ID.",
+      details: paramsResult.error.issues,
+    });
   }
 
-  // Match commentary: Step 1: Validate payload --> server.js
   const bodyResult = createCommentarySchema.safeParse(req.body);
   if (!bodyResult.success) {
     return res.status(400).json({
@@ -61,13 +72,43 @@ commentaryRouter.post("/", async (req, res) => {
   }
 
   try {
+    const matchId = paramsResult.data.id;
+    if (!mongoose.Types.ObjectId.isValid(matchId)) {
+      return res.status(400).json({ error: "Invalid match ID." });
+    }
+
+    // ✅ STEP 1: Check match exists
+    const match = await Match.findById(matchId);
+
+    if (!match) {
+      return res.status(404).json({ error: "Match not found" });
+    }
+
+    // ✅ STEP 2: Update match status dynamically
+    const updatedStatus = getMatchStatus(match.startTime, match.endTime, match.status);
+
+    if (match.status !== updatedStatus) {
+      match.status = updatedStatus;
+      await match.save();
+    }
+
+    // ✅ STEP 3: Allow only if LIVE
+    if (match.status !== "live") {
+      return res.status(400).json({
+        error: `Cannot add commentary. Match is ${match.status}`,
+      });
+    }
+
+    // ✅ STEP 4: Create commentary
     const { minute, ...rest } = bodyResult.data;
+
     const result = await Commentary.create({
-      matchId: paramsResult.data.id,
+      matchId,
       minute,
       ...rest,
     });
 
+    // ✅ STEP 5: Broadcast
     if (res.app.locals.broadcastCommentary) {
       res.app.locals.broadcastCommentary(result.matchId, result);
     }

@@ -1,5 +1,6 @@
-import { WebSocket, WebSocketServer } from "ws";
 import { wsArcjet } from "../arcjet.js";
+import { WebSocket, WebSocketServer } from "ws";
+import { startScoreSimulation } from "../utils/score-simulator.js";
 
 // So every match has its own list of subscribers.
 const matchSubscribers = new Map();
@@ -92,6 +93,13 @@ export function attachWebSocketServer(server) {
     maxPayload: 1024 * 1024,
   });
 
+  function broadcastMatchUpdated(match) {
+    broadcastToAll(wss, {
+      type: "match_updated",
+      data: match,
+    });
+  }
+
   // upgrade connection to websocket
   server.on("upgrade", async (req, socket, head) => {
     console.log("Upgrade Hit");
@@ -182,5 +190,7 @@ export function attachWebSocketServer(server) {
     broadcastToMatch(matchId, { type: "commentary", data: comment });
   }
 
-  return { broadcastMatchCreated, broadcastCommentary };
+  startScoreSimulation(broadcastMatchUpdated);
+
+  return { broadcastMatchCreated, broadcastCommentary, broadcastMatchUpdated };
 }
