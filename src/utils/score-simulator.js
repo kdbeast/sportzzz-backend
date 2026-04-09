@@ -14,36 +14,44 @@ function getRandomOutcome() {
 export function startScoreSimulation(broadcastMatchUpdated) {
   setInterval(async () => {
     const matches = await Match.find();
+    let updated = false;
 
     for (const match of matches) {
-      const status = getMatchStatus(
-        match.startTime,
-        match.endTime,
-        match.status,
-      );
+      const status = getMatchStatus(match.startTime, match.endTime);
 
-      if (status !== "live") continue;
+      // 🔥 update DB status
+      if (match.status !== status) {
+        match.status = status;
+        updated = true;
+      }
+
+      if (status !== "live") {
+        if (updated) {
+          await match.save();
+          broadcastMatchUpdated(match);
+        }
+        continue;
+      }
 
       const outcome = getRandomOutcome();
-
-      // randomly choose team batting
       const isHomeBatting = Math.random() > 0.5;
 
       if (outcome === "W") {
         console.log(`WICKET in ${match.homeTeam} vs ${match.awayTeam}`);
-        continue; // skip score update for now
-      }
-
-      if (isHomeBatting) {
-        match.homeScore += outcome;
       } else {
-        match.awayScore += outcome;
+        if (isHomeBatting) {
+          match.homeScore += outcome;
+        } else {
+          match.awayScore += outcome;
+        }
+        updated = true;
       }
 
-      await match.save();
-
-      // 🔥 broadcast update
-      broadcastMatchUpdated(match);
+      // ✅ Save only if something changed
+      if (updated) {
+        await match.save();
+        broadcastMatchUpdated(match);
+      }
     }
   }, 2000); // every 2 sec (feels live)
 }
